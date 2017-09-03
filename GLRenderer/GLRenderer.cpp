@@ -86,7 +86,7 @@ int main()
 
 	//loading the texture
 	GLuint texture1 = genTexture("../textures/container.jpg", 0);
-	GLuint texture2 = genTexture("../textures/kit.jpg", 1);
+	GLuint texture2 = genTexture("../textures/awesomeface.png", 1);
 
 	//Shader Program	
 	ourShader.use();
