@@ -7,7 +7,7 @@
 
 #include <iostream>
 
-GLFWwindow* initWindow(GLuint width, GLuint height) {
+static GLFWwindow* initWindow(GLuint width, GLuint height) {
 	/* Initializing GLFW */
 	if (!glfwInit())
 		return nullptr;
@@ -36,7 +36,7 @@ GLFWwindow* initWindow(GLuint width, GLuint height) {
 	return window;
 }
 
-GLuint genTexture(const char* texPath, GLuint unit) {
+static GLuint genTexture(const char* texPath, GLuint unit) {
 	unsigned int texture;
 	glGenTextures(1, &texture);
 
