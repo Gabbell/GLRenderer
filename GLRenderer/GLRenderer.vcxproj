@@ -137,6 +137,7 @@
     <ClCompile Include="GLRenderer.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Camera.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="Utilities.h" />
