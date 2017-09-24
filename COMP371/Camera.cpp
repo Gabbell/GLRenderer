@@ -45,12 +45,18 @@ void Camera::arcballPitch(GLfloat angle) {
 	updateCameraVectors();
 }
 void Camera::arcballYaw(GLfloat angle) {
+	//Getting vector from origin to camera position
 	glm::vec3 targetToCamera = m_position - m_center;
+
+	//Rotating it on the z axis by a certain angle
 	glm::mat4 arcRotation(1.0f);
 	arcRotation = glm::rotate(arcRotation, angle, glm::vec3(0.0f,0.0f,1.0f));
 	glm::vec3 targetToNewPosition = arcRotation * glm::vec4(targetToCamera, 1.0f);
+
+	//Translating camera position
 	m_position += (targetToNewPosition - m_position);
 
+	//Adjusting yaw
 	m_yaw -= glm::degrees(angle);
 
 	updateCameraVectors();
