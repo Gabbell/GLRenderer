@@ -1,6 +1,3 @@
-//example skeleton code
-//modified from http://learnopengl.com/
-
 #include "stdafx.h"
 
 #include "GL/glew.h"	// include GL Extension Wrangler
@@ -67,10 +64,14 @@ GLfloat currentAngle = 0.0f;
 GLint gridSize;
 GLint gridBounds;
 GLint currentRenderingMode = GL_TRIANGLES;
+GLfloat enemyTimer;
 
 //Prototypes
 GLfloat determineAngle();
 void generateGridVerts(std::vector<glm::vec3> &gridVerts);
+void performGhostTranslation();
+void checkGameOver();
+void gameSetup();
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods);
@@ -121,15 +122,15 @@ int main() {
 	glfwGetFramebufferSize(window, &screenWidth, &screenHeight);
 	glViewport(0, 0, screenWidth, screenHeight);
 
-	Shader shader = Shader("vertex.shader", "fragment.shader");
+	Shader shader = Shader("../shaders/vertex.shader", "../shaders/fragment.shader");
 	shader.use();
 
 	//Object Loading
-	meshPacman = Mesh("pacman.obj");
+	meshPacman = Mesh("../models/pacman.obj");
 	meshPacman.addPosition(glm::vec3(0.0f, 0.0f, 0.0f));
 
-	meshSpheres = Mesh("sphere.obj");
-	meshGhosts = Mesh("mazeghost.obj");
+	meshSpheres = Mesh("../models/sphere.obj");
+	meshGhosts = Mesh("../models/mazeghost.obj");
 
 	//Generating axes vertices
 	std::vector<glm::vec3> axesVerts;
@@ -151,16 +152,7 @@ int main() {
 	meshGrid = Mesh(gridVerts);
 
 	srand(time(NULL));
-	//Generating random positions for spheres
-	GLuint numberOfSpheres = glm::linearRand(1, 20);
-	for (int i = 0; i < numberOfSpheres; i++) {
-		meshSpheres.addPosition(glm::vec3(glm::linearRand(-gridBounds, gridBounds), glm::linearRand(-gridBounds, gridBounds), 0));
-	}
-	//Generating random positions for ghosts
-	GLuint numberOfGhosts = glm::linearRand(3, 5);
-	for (int i = 0; i < numberOfGhosts; i++) {
-		meshGhosts.addPosition(glm::vec3(glm::linearRand(-gridBounds, gridBounds), glm::linearRand(-gridBounds, gridBounds), 0));
-	}
+	gameSetup();
 
 	//OpenGL state configurations
 	glEnable(GL_DEPTH_TEST);
@@ -221,6 +213,7 @@ int main() {
 		glBindVertexArray(0);
 
 		//Ghosts rendering
+		performGhostTranslation();
 		glBindVertexArray(meshGhosts.getVAO());
 		shader.setVec4("drawColor", blueColor);
 		for (unsigned int i = 0; i < meshGhosts.getPositions().size(); i++) {
@@ -299,11 +292,68 @@ GLfloat determineAngle() {
 	return 0.0f;
 }
 
-void checkSpheres() {
+void checkSphereCollisions() {
 	for (int i = 0; i < meshSpheres.getPositions().size(); i++) {
 		if (meshSpheres.getPositions()[i] == meshPacman.getPositions()[0]) {
 			meshSpheres.removePosition(i);
 		}
+	}
+}
+bool checkGhostCollisions(GLuint index, GLfloat x, GLfloat y) {
+	std::vector<glm::vec3> ghostPositions = meshGhosts.getPositions();
+	glm::vec3 currentGhostPosition = ghostPositions[index];
+	glm::vec3 newGhostPosition = glm::vec3(currentGhostPosition.x + x, currentGhostPosition.y + y, currentGhostPosition.z);
+	for (int i = 0; i < ghostPositions.size(); i++) {
+		if (i != index && ghostPositions[i] == newGhostPosition) {
+			return true;
+		}
+	}
+	return false;
+}
+void checkGameOver() {
+	glm::vec3 pacmanPosition = meshPacman.getPositions()[0];
+	for (int i = 0; i < meshGhosts.getPositions().size(); i++) {
+		//GAME OVER
+		if (pacmanPosition == meshGhosts.getPositions()[i]) {
+			gameSetup();
+		}
+	}
+}
+
+//Pathfinding
+void performGhostTranslation() {
+	if (enemyTimer > 200) {
+		enemyTimer = 0;
+		std::vector<glm::vec3> ghostPositions = meshGhosts.getPositions();
+		glm::vec3 pacmanPosition = meshPacman.getPositions()[0];
+
+		for (int i = 0; i < ghostPositions.size(); i++) {
+			glm::vec3 currentGhostPosition = ghostPositions[i];
+			glm::vec3 ghostToPacman = pacmanPosition - currentGhostPosition;
+
+			//Move in x
+			if (abs(ghostToPacman.x) > abs(ghostToPacman.y)) {
+				if (pacmanPosition.x - currentGhostPosition.x < 0 && !checkGhostCollisions(i, -1.0f, 0.0f)) {
+					meshGhosts.setPosition(i, glm::vec3(currentGhostPosition.x - 1.0f, currentGhostPosition.y, currentGhostPosition.z));
+				}
+				else if (!checkGhostCollisions(i, 1.0f, 0.0f)) {
+					meshGhosts.setPosition(i, glm::vec3(currentGhostPosition.x + 1.0f, currentGhostPosition.y, currentGhostPosition.z));
+				}
+			}
+			//Move in y
+			else {
+				if (pacmanPosition.y - currentGhostPosition.y < 0 && !checkGhostCollisions(i, 0.0f, -1.0f)) {
+					meshGhosts.setPosition(i, glm::vec3(currentGhostPosition.x, currentGhostPosition.y - 1.0f, currentGhostPosition.z));
+				}
+				else if (!checkGhostCollisions(i, 0.0f, 1.0f)) {
+					meshGhosts.setPosition(i, glm::vec3(currentGhostPosition.x, currentGhostPosition.y + 1.0f, currentGhostPosition.z));
+				}
+			}
+		}
+		checkGameOver();
+	}
+	else {
+		enemyTimer++;
 	}
 }
 
@@ -321,6 +371,23 @@ void generateGridVerts(std::vector<glm::vec3>& gridVerts) {
 		gridVerts.push_back(glm::vec3(currentX, currentY, 0));
 		gridVerts.push_back(glm::vec3((-currentX), currentY, 0));
 		currentY++;
+	}
+}
+
+//Setting up initial positions
+void gameSetup() {
+	meshSpheres.clearPositions();
+	meshGhosts.clearPositions();
+	meshPacman.setPosition(glm::vec3(0.0f, 0.0f, 0.0f));
+	//Generating random positions for spheres
+	GLuint numberOfSpheres = glm::linearRand(1, 20);
+	for (int i = 0; i < numberOfSpheres; i++) {
+		meshSpheres.addPosition(glm::vec3(glm::linearRand(-gridBounds, gridBounds), glm::linearRand(-gridBounds, gridBounds), 0));
+	}
+	//Generating random positions for ghosts
+	GLuint numberOfGhosts = glm::linearRand(3, 5);
+	for (int i = 0; i < numberOfGhosts; i++) {
+		meshGhosts.addPosition(glm::vec3(glm::linearRand(-gridBounds, gridBounds), glm::linearRand(-gridBounds, gridBounds), 0));
 	}
 }
 
@@ -379,7 +446,7 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		nextDirection = RIGHT;
 	}
 
-	checkSpheres();
+	checkSphereCollisions();
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
@@ -432,7 +499,7 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 		camera.zoom(yoffset/50);
 	}
 	if (camera.panMode) {
-		camera.swivelYaw(xoffset/50);
+		camera.translate(glm::vec3(xoffset/50,0.0f,0.0f));
 	}
 	if (camera.tiltMode) {
 		camera.swivelPitch(yoffset/50);

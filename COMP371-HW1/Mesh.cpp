@@ -86,6 +86,9 @@ void Mesh::setPositions(std::vector<glm::vec3> positions) {
 void Mesh::setPosition(glm::vec3 position) {
 	m_positions[0] = position;
 }
+void Mesh::setPosition(GLuint index, glm::vec3 position) {
+	m_positions[index] = position;
+}
 
 //Other functions
 void Mesh::addPosition(glm::vec3 position) {
@@ -96,6 +99,9 @@ void Mesh::removePosition(GLuint index) {
 }
 void Mesh::translate(glm::vec3 translation){
 	m_positions[0] += translation;
+}
+void Mesh::clearPositions() {
+	m_positions.clear();
 }
 
 Mesh::~Mesh()

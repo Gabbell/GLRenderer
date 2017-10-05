@@ -23,10 +23,12 @@ public:
 	void setUvs(std::vector<glm::vec2> uvs);
 	void setPositions(std::vector<glm::vec3> positions);
 	void setPosition(glm::vec3 position);
+	void setPosition(GLuint index, glm::vec3 position);
 
 	void addPosition(glm::vec3 position);
 	void removePosition(GLuint index);
 	void translate(glm::vec3 translation);
+	void clearPositions();
 
 private:
 	std::vector<glm::vec3> m_vertices;
