@@ -6,12 +6,21 @@
 #include "GL/glew.h"
 #include "GLFW/glfw3.h"
 
+enum class Camera_Movement {
+	FORWARD,
+	BACKWARD,
+	LEFT,
+	RIGHT
+};
+
 class Camera {
 public:
 	Camera(glm::vec3 position, glm::vec3 front, GLfloat yaw, GLfloat pitch);
 	glm::mat4 getViewMatrix();
 	glm::mat4 getOrientation();
 	void updateCameraVectors();
+	void processKeyboard(Camera_Movement direction);
+	void processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch);
 	void translate(glm::vec3 translationVec);
 	void zoom(GLfloat fov);
 	void swivelPitch(GLfloat angle);
@@ -36,13 +45,14 @@ public:
 	GLfloat m_pitch;
 	GLfloat m_zoom;
 
-	//Camera Properties
-	GLfloat mouseSensitivity = 0.1f;
-	GLfloat velocity = 1.0f;
-
 	//Camera States
 	GLboolean zoomMode = false;
 	GLboolean panMode = false;
 	GLboolean tiltMode = false;
+
+private:
+	//Camera Properties
+	GLfloat mouseSensitivity = 0.1f;
+	GLfloat movementSpeed = 5.0f;
 };
 

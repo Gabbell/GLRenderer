@@ -13,6 +13,35 @@ Camera::Camera(glm::vec3 position, glm::vec3 front, GLfloat yaw, GLfloat pitch) 
 }
 
 //Change camera position
+void Camera::processKeyboard(Camera_Movement direction) {
+	float velocity = movementSpeed;
+	if (direction == Camera_Movement::FORWARD)
+		m_position += m_front * velocity;
+	if (direction == Camera_Movement::BACKWARD)
+		m_position -= m_front * velocity;
+	if (direction == Camera_Movement::LEFT)
+		m_position -= m_right * velocity;
+	if (direction == Camera_Movement::RIGHT)
+		m_position += m_right * velocity;
+}
+void Camera::processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true) {
+	xoffset *= mouseSensitivity;
+	yoffset *= mouseSensitivity;
+
+	m_yaw += xoffset;
+	m_pitch -= yoffset;
+
+	// Make sure that when pitch is out of bounds, screen doesn't get flipped
+	if (constrainPitch){
+		if (m_pitch > 89.0f)
+			m_pitch = 89.0f;
+		if (m_pitch < -89.0f)
+			m_pitch = -89.0f;
+	}
+
+	// Update Front, Right and Up Vectors using the updated Eular angles
+	updateCameraVectors();
+}
 void Camera::translate(glm::vec3 translationVec) {
 	m_position += translationVec;
 }

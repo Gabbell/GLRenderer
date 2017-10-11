@@ -1,5 +1,3 @@
-#include "stdafx.h"
-
 #include "GL/glew.h"	// include GL Extension Wrangler
 #include "GLFW/glfw3.h"	// include GLFW helper library
 #include <iostream>
@@ -31,7 +29,7 @@ glm::mat4 view_matrix;
 glm::mat4 model_matrix;
 
 //Camera
-Camera camera(glm::vec3(0.0f,0.0f,15.0f), glm::vec3(0.0f,0.0f,-1.0f), 0.0f, 0.0f);
+Camera camera(glm::vec3(0.0f, 0.0f, 15.0f), glm::vec3(0.0f, 0.0f, -1.0f), 0.0f, 0.0f);
 GLboolean firstMouse = true;
 GLdouble lastY;
 GLdouble lastX;
@@ -93,7 +91,7 @@ int main() {
 	std::cout << "Status: Using GLFW " << glfwGetVersionString() << std::endl;
 
 	// Create a GLFWwindow object that we can use for GLFW's functions
-	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "Load one cube", nullptr, nullptr);
+	GLFWwindow* window = glfwCreateWindow(screenWidth, screenHeight, "3D Pacman", nullptr, nullptr);
 	if (window == nullptr) {
 		std::cout << "Failed to create GLFW window" << std::endl;
 		glfwTerminate();
@@ -173,7 +171,7 @@ int main() {
 		//Setting the matrix uniforms
 		shader.setMat4("view_matrix", view_matrix);
 		shader.setMat4("projection_matrix", projection_matrix);
-		
+
 		//Grid rendering
 		glBindVertexArray(meshGrid.getVAO());
 		model_matrix = glm::mat4();
@@ -199,7 +197,7 @@ int main() {
 		glDrawArrays(GL_LINES, 4, 2);
 
 		glBindVertexArray(0);
-		
+
 		//Sphere rendering
 		glBindVertexArray(meshSpheres.getVAO());
 		shader.setVec4("drawColor", redColor);
@@ -239,7 +237,7 @@ int main() {
 		shader.setVec4("drawColor", yellowColor);
 		glDrawArrays(currentRenderingMode, 0, meshPacman.getVerts().size());
 		glBindVertexArray(0);
-		
+
 		// Swap the screen buffers
 		glfwSwapBuffers(window);
 	}
@@ -252,42 +250,42 @@ int main() {
 //Determine rotation angle based on direction changes
 GLfloat determineAngle() {
 	switch (nextDirection) {
-		case UP:
-			if (currentDirection == DOWN)
-				return 180.0f;
-			if (currentDirection == RIGHT)
-				return 90.0f;
-			if (currentDirection == LEFT)
-				return -90.0f;
-			else
-				return 0.0f;
-		case DOWN:
-			if (currentDirection == UP)
-				return 180.0f;
-			if (currentDirection == RIGHT)
-				return -90.0f;
-			if (currentDirection == LEFT)
-				return 90.0f;
-			else
-				return 0.0f;
-		case RIGHT:
-			if (currentDirection == UP)
-				return -90.0f;
-			if (currentDirection == DOWN)
-				return 90.0f;
-			if (currentDirection == LEFT)
-				return 180.0f;
-			else
-				return 0.0f;
-		case LEFT:
-			if (currentDirection == UP)
-				return 90.0f;
-			if (currentDirection == DOWN)
-				return -90.0f;
-			if (currentDirection == RIGHT)
-				return 180.0f;
-			else
-				return 0.0f;
+	case UP:
+		if (currentDirection == DOWN)
+			return 180.0f;
+		if (currentDirection == RIGHT)
+			return 90.0f;
+		if (currentDirection == LEFT)
+			return -90.0f;
+		else
+			return 0.0f;
+	case DOWN:
+		if (currentDirection == UP)
+			return 180.0f;
+		if (currentDirection == RIGHT)
+			return -90.0f;
+		if (currentDirection == LEFT)
+			return 90.0f;
+		else
+			return 0.0f;
+	case RIGHT:
+		if (currentDirection == UP)
+			return -90.0f;
+		if (currentDirection == DOWN)
+			return 90.0f;
+		if (currentDirection == LEFT)
+			return 180.0f;
+		else
+			return 0.0f;
+	case LEFT:
+		if (currentDirection == UP)
+			return 90.0f;
+		if (currentDirection == DOWN)
+			return -90.0f;
+		if (currentDirection == RIGHT)
+			return 180.0f;
+		else
+			return 0.0f;
 	}
 	return 0.0f;
 }
@@ -429,11 +427,11 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 		meshPacman.setPosition(glm::vec3((int)glm::linearRand(-gridBounds, gridBounds), (int)glm::linearRand(-gridBounds, gridBounds), 0));
 
 	//Player movement keys
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS && meshPacman.getPositions()[0].y < (GLint)gridSize/2) {
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS && meshPacman.getPositions()[0].y < (GLint)gridSize / 2) {
 		meshPacman.translate(glm::vec3(0.0f, 1.0f, 0.0f));
 		nextDirection = UP;
 	}
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS && meshPacman.getPositions()[0].y > -(GLint)gridSize/2) {
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS && meshPacman.getPositions()[0].y > -(GLint)gridSize / 2) {
 		meshPacman.translate(glm::vec3(0.0f, -1.0f, 0.0f));
 		nextDirection = DOWN;
 	}
@@ -496,13 +494,13 @@ void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
 
 	//Camera actions depending on mode
 	if (camera.zoomMode) {
-		camera.zoom(yoffset/50);
+		camera.zoom(yoffset / 50);
 	}
 	if (camera.panMode) {
-		camera.translate(glm::vec3(xoffset/50,0.0f,0.0f));
+		camera.translate(glm::vec3(xoffset / 50, 0.0f, 0.0f));
 	}
 	if (camera.tiltMode) {
-		camera.swivelPitch(yoffset/50);
+		camera.swivelPitch(yoffset / 50);
 	}
 }
 
