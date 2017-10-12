@@ -18,8 +18,18 @@ public:
 	Camera(glm::vec3 position, glm::vec3 front, GLfloat yaw, GLfloat pitch);
 	glm::mat4 getViewMatrix();
 	glm::mat4 getOrientation();
+	void setFreeMode(GLboolean state);
+	void setGoingForward(GLboolean state);
+	void setGoingBackward(GLboolean state);
+	void setGoingRight(GLboolean state);
+	void setGoingLeft(GLboolean state);
+	GLboolean getFreeMode();
+	GLboolean isGoingForward();
+	GLboolean isGoingBackward();
+	GLboolean isGoingRight();
+	GLboolean isGoingLeft();
 	void updateCameraVectors();
-	void processKeyboard(Camera_Movement direction);
+	void processMovement(GLfloat delta);
 	void processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch);
 	void translate(glm::vec3 translationVec);
 	void zoom(GLfloat fov);
@@ -45,14 +55,16 @@ public:
 	GLfloat m_pitch;
 	GLfloat m_zoom;
 
-	//Camera States
-	GLboolean zoomMode = false;
-	GLboolean panMode = false;
-	GLboolean tiltMode = false;
-
 private:
 	//Camera Properties
 	GLfloat mouseSensitivity = 0.1f;
-	GLfloat movementSpeed = 5.0f;
+	GLfloat movementSpeed = 50.0f;
+
+	//Camera States
+	GLboolean freeMode = false;
+	GLboolean goingForward = false;
+	GLboolean goingBackward = false;
+	GLboolean goingRight = false;
+	GLboolean goingLeft = false;
 };
 

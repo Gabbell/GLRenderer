@@ -55,10 +55,10 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\shaders\vertex.shader">
+    <None Include="..\shaders\hw2.frag">
       <Filter>Shaders</Filter>
     </None>
-    <None Include="..\shaders\fragment.shader">
+    <None Include="..\shaders\hw2.vert">
       <Filter>Shaders</Filter>
     </None>
   </ItemGroup>

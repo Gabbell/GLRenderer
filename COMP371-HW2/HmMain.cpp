@@ -32,9 +32,6 @@ GLboolean firstMouse = true;
 GLdouble lastY;
 GLdouble lastX;
 
-//Colours
-glm::vec4 redColor = glm::vec4(1.0f, 0.0f, 0.0f, 1.0f);
-
 //Shaders
 Shader shader;
 
@@ -48,16 +45,25 @@ GLfloat delta = 0;
 GLfloat currentTime = 0;
 
 //Other constants & variables
-GLint currentRenderingMode = GL_POINTS;
-GLuint skipSize;
+GLint currentRenderingMode = GL_TRIANGLES;
 GLint hmWidth, hmHeight, hmBpp;
 unsigned char* hmData;
 std::vector<glm::vec3> hmVerts;
+GLuint skipSize;
+GLuint stepSize;
+GLfloat s = 0.5; //Tension parameter
+glm::mat4 basisMatrix( //Column major
+	-s,		2*s,	-s,		0,
+	2-s,	s-3,	0,		1,
+	s-2,	3-2*s,	s,		0,
+	s,		-s,		0,		0
+);
 
 //Prototypes
 void gameSetup();
 void render();
 void hmParse();
+void catmullRomPass(std::vector<glm::vec3> verts);
 void update(GLfloat delta);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -106,9 +112,8 @@ int main() {
 	glfwSetCursorPosCallback(window, mouse_callback);
 	glfwSetMouseButtonCallback(window, mouse_button_callback);
 	glfwSetWindowSizeCallback(window, window_size_callback);
-	glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 
-	shader = Shader("../shaders/vertex.shader", "../shaders/fragment.shader");
+	shader = Shader("../shaders/hw2.vert", "../shaders/hw2.frag");
 	shader.use();
 
 	//Object Loading
@@ -122,10 +127,10 @@ int main() {
 
 	// Game loop
 	while (!glfwWindowShouldClose(window)) {
+		currentTime = glfwGetTime();
+
 		// Check if any events have been activiated (key pressed, mouse moved etc.) and call corresponding response functions
 		glfwPollEvents();
-
-		currentTime = glfwGetTime();
 
 		update((GLfloat)delta);
 
@@ -158,16 +163,64 @@ int main() {
 //Setting up initial variables
 void hmParse() {
 	GLuint currentPixel = 0;
-	for (GLfloat i = 0; i < hmWidth; i++) {
+	std::vector<glm::vec3> hmRawVerts;
+
+	for (GLfloat i = 0; i < hmWidth; i += skipSize) {
 		for (GLfloat j = 0; j < hmHeight; j += skipSize) {
-			hmVerts.push_back(glm::vec3(i, j, (GLfloat)hmData[currentPixel]));
+			hmRawVerts.push_back(glm::vec3(i, j, (GLfloat)hmData[currentPixel]));
 			currentPixel += skipSize;
+		}
+		currentPixel = i * hmWidth; //Make sure the skipSize does not disturb the parsing by not being a divisor of the width
+	}
+
+	GLuint newWidth = hmWidth / skipSize;
+	GLuint newHeight = hmHeight / skipSize;
+
+	std::cout << "newWidth: " << newWidth << " newHeight: " << newHeight << std::endl;
+	//Ordering vertices properly for rendering
+	for (int row = 0; row < newWidth - 1; row++) {
+		for (int col = 0; col < newHeight - 1; col++) {
+			//All four vertices of the rectangle made by two triangles
+			glm::vec3 topRight(hmRawVerts.at((row*newWidth) + col + 1));
+			glm::vec3 topLeft(hmRawVerts.at((row*newWidth) + col));
+			glm::vec3 bottomLeft(hmRawVerts.at((row + 1)*newWidth + col));
+			glm::vec3 bottomRight(hmRawVerts.at((row + 1)*newWidth + col + 1));
+
+			//CCW Order
+			//First triangle
+			hmVerts.push_back(topRight);
+			hmVerts.push_back(topLeft);
+			hmVerts.push_back(bottomLeft);
+			//Second Triangle
+			hmVerts.push_back(topRight);
+			hmVerts.push_back(bottomLeft);
+			hmVerts.push_back(bottomRight);
+		}
+	}
+}
+
+void catmullRomPass(std::vector<glm::vec3> verts) {
+	for (int i = 0; i < verts.size(); i++) {
+		glm::vec3 p0(verts[i]);
+		glm::vec3 p1(verts[i + 1]);
+		glm::vec3 p2(verts[i + 2]);
+		glm::vec3 p3(verts[i + 3]);
+
+		glm::mat3x4 controlMatrix(
+			p0.x, p1.x, p2.x, p3.x,
+			p0.y, p1.y, p2.y, p3.y,
+			p0.z, p1.z, p2.z, p3.z
+		);
+
+		for (GLfloat u = 0; u < 1; u += stepSize) {
+			glm::vec4 currentU(u*u*u, u*u, u, 1);
+			glm::vec3 newPoint(currentU * basisMatrix * controlMatrix);
 		}
 	}
 }
 
 void update(GLfloat deltaSeconds) {
-
+	camera.processMovement(delta);
 }
 
 void render() {
@@ -188,7 +241,6 @@ void render() {
 	glBindVertexArray(hmMesh.getVAO());
 	model_matrix = glm::mat4();
 	model_matrix = glm::scale(model_matrix, glm::vec3(1.0f));
-	shader.setVec4("drawColor", redColor);
 	shader.setMat4("model_matrix", model_matrix);
 	glDrawArrays(currentRenderingMode, 0, hmVerts.size());
 	glBindVertexArray(0);
@@ -198,37 +250,60 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	//Exit when escape is pressed
 	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
 		glfwSetWindowShouldClose(window, true);
-	std::cout << "callback called" << glm::linearRand(0,100) << std::endl;
+
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
-		camera.processKeyboard(Camera_Movement::FORWARD);
+		camera.setGoingForward(true);
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) 
-		camera.processKeyboard(Camera_Movement::BACKWARD);
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) 
-		camera.processKeyboard(Camera_Movement::LEFT);
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) 
-		camera.processKeyboard(Camera_Movement::RIGHT);
+		camera.setGoingBackward(true);
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
+		camera.setGoingLeft(true);
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
+		camera.setGoingRight(true);
+	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_RELEASE)
+		camera.setGoingForward(false);
+	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_RELEASE)
+		camera.setGoingBackward(false);
+	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_RELEASE)
+		camera.setGoingLeft(false);
+	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_RELEASE)
+		camera.setGoingRight(false);
+
+	//Rendering Modes
+	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
+		currentRenderingMode = GL_POINTS;
+	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS)
+		currentRenderingMode = GL_TRIANGLES;
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {
 	//Get the current cursor position and store them in lastX and lastY
 	glfwGetCursorPos(window, &lastX, &lastY);
+	if (button == GLFW_MOUSE_BUTTON_RIGHT && action == GLFW_PRESS) {
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+		camera.setFreeMode(true);
+	}
+	else {
+		glfwSetInputMode(window, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+		camera.setFreeMode(false);
+	}
 }
 
 void mouse_callback(GLFWwindow* window, double xpos, double ypos) {
-	//Special case if it is first time mouse entered the screen
-	if (firstMouse) {
+	if (camera.getFreeMode()) {//Special case if it is first time mouse entered the screen
+		if (firstMouse) {
+			lastX = xpos;
+			lastY = ypos;
+			firstMouse = false;
+		}
+
+		float xoffset = xpos - lastX;
+		float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+
 		lastX = xpos;
 		lastY = ypos;
-		firstMouse = false;
+
+		camera.processMouseMovement(xoffset, yoffset, true);
 	}
-
-	float xoffset = xpos - lastX;
-	float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
-
-	lastX = xpos;
-	lastY = ypos;
-
-	camera.processMouseMovement(xoffset, yoffset, true);
 }
 
 void window_size_callback(GLFWwindow* window, int width, int height) {

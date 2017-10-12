@@ -133,8 +133,8 @@
     <ClInclude Include="Transform.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\shaders\fragment.shader" />
-    <None Include="..\shaders\vertex.shader" />
+    <None Include="..\shaders\hw1.frag" />
+    <None Include="..\shaders\hw1.vert" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

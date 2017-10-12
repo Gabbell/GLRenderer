@@ -120,7 +120,7 @@ int main() {
 	glfwGetFramebufferSize(window, &screenWidth, &screenHeight);
 	glViewport(0, 0, screenWidth, screenHeight);
 
-	Shader shader = Shader("../shaders/vertex.shader", "../shaders/fragment.shader");
+	Shader shader = Shader("../shaders/hw1.vert", "../shaders/hw1.frag");
 	shader.use();
 
 	//Object Loading

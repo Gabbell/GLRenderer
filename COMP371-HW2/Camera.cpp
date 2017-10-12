@@ -13,16 +13,16 @@ Camera::Camera(glm::vec3 position, glm::vec3 front, GLfloat yaw, GLfloat pitch) 
 }
 
 //Change camera position
-void Camera::processKeyboard(Camera_Movement direction) {
-	float velocity = movementSpeed;
-	if (direction == Camera_Movement::FORWARD)
+void Camera::processMovement(GLfloat delta) {
+	GLfloat velocity = movementSpeed * delta;
+	if (goingForward)
 		m_position += m_front * velocity;
-	if (direction == Camera_Movement::BACKWARD)
+	if (goingBackward)
 		m_position -= m_front * velocity;
-	if (direction == Camera_Movement::LEFT)
-		m_position -= m_right * velocity;
-	if (direction == Camera_Movement::RIGHT)
+	if (goingRight)
 		m_position += m_right * velocity;
+	if (goingLeft)
+		m_position -= m_right * velocity;
 }
 void Camera::processMouseMovement(float xoffset, float yoffset, GLboolean constrainPitch = true) {
 	xoffset *= mouseSensitivity;
@@ -115,5 +115,16 @@ glm::mat4 Camera::getViewMatrix() {
 	return glm::lookAt(m_position, m_position + m_front, m_up);
 }
 
+void Camera::setFreeMode(GLboolean state) { freeMode = state; }
+void Camera::setGoingForward(GLboolean state) { goingForward = state; }
+void Camera::setGoingBackward(GLboolean state) { goingBackward = state; }
+void Camera::setGoingRight(GLboolean state) { goingRight = state; }
+void Camera::setGoingLeft(GLboolean state) { goingLeft = state; }
+
+GLboolean Camera::getFreeMode() { return freeMode; }
+GLboolean Camera::isGoingForward() { return goingForward; }
+GLboolean Camera::isGoingBackward() { return goingBackward; }
+GLboolean Camera::isGoingRight() { return goingRight; }
+GLboolean Camera::isGoingLeft() { return goingLeft; }
 Camera::~Camera() {
 }
