@@ -3,7 +3,9 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <queue>
 #include <fstream>
+#include <math.h>
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
@@ -15,9 +17,14 @@
 #include "Transform.h"
 
 #define STB_IMAGE_IMPLEMENTATION
+#define PRIMITIVE_RESTART 0xFFFFFFFF
 #include "stb_image.h"
 
 using namespace std;
+
+enum class HMSTEP {
+	ORIGINAL, SKIPSIZED, CR1, CR2
+};
 
 //Window dimensions
 GLint screenWidth = 800, screenHeight = 800;
@@ -27,7 +34,7 @@ glm::mat4 view_matrix;
 glm::mat4 model_matrix;
 
 //Camera
-Camera camera(glm::vec3(344.5f,344.5f,344.5f), glm::vec3(-1.0f, 0.0f, 0.0f), 0.0f, 0.0f);
+Camera camera(glm::vec3(344.5f,344.5f,689.0f));
 GLboolean firstMouse = true;
 GLdouble lastY;
 GLdouble lastX;
@@ -37,6 +44,10 @@ Shader shader;
 
 //Meshes
 Mesh hmMesh;
+Mesh hmMeshOriginal;
+Mesh hmMeshSkipsized;
+Mesh hmMeshCr1;
+Mesh hmMeshCr2;
 
 //Timing
 GLuint frames = 0;
@@ -44,26 +55,32 @@ GLfloat counter = 0;
 GLfloat delta = 0;
 GLfloat currentTime = 0;
 
+//Data for different steps
+HMSTEP currentStep = HMSTEP::ORIGINAL;
+std::vector<glm::vec3> hmVertsOriginal;
+std::vector<glm::vec3> hmVertsSkipsized;
+std::vector<glm::vec3> hmVertsCr1;
+std::vector<glm::vec3> hmVertsCr2;
+std::vector<GLuint> hmIndicesOriginal;
+std::vector<GLuint> hmIndicesSkipsized;
+std::vector<GLuint> hmIndicesCr1;
+std::vector<GLuint> hmIndicesCr2;
+
 //Other constants & variables
-GLint currentRenderingMode = GL_TRIANGLES;
+GLint currentRenderingMode = GL_TRIANGLE_STRIP;
 GLint hmWidth, hmHeight, hmBpp;
 unsigned char* hmData;
-std::vector<glm::vec3> hmVerts;
 GLuint skipSize;
-GLuint stepSize;
-GLfloat s = 0.5; //Tension parameter
-glm::mat4 basisMatrix( //Column major
-	-s,		2*s,	-s,		0,
-	2-s,	s-3,	0,		1,
-	s-2,	3-2*s,	s,		0,
-	s,		-s,		0,		0
-);
+GLfloat stepSize;
 
 //Prototypes
-void gameSetup();
 void render();
 void hmParse();
-void catmullRomPass(std::vector<glm::vec3> verts);
+void setupMeshes();
+std::vector<GLuint> hmGenIndices(GLuint newWidth, GLuint newHeight);
+std::vector<GLuint> hmGenIndices2(GLuint newWidth, GLuint newHeight);
+std::queue<glm::vec3> linearInterpolation(glm::vec3 p0, glm::vec3 p1);
+std::queue<glm::vec3> crInterpolation(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3);
 void update(GLfloat delta);
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -75,6 +92,8 @@ int main() {
 
 	std::cout << "Please enter a skip size: " << std::endl;
 	std::cin >> skipSize;
+	std::cout << "Please enter a step size: " << std::endl;
+	std::cin >> stepSize;
 	// Init GLFW
 	glfwInit();
 
@@ -119,11 +138,16 @@ int main() {
 	//Object Loading
 	hmData = stbi_load("../textures/heightmapdemo.bmp", &hmWidth, &hmHeight, &hmBpp, 1); //Colours are for weaklings
 
-	hmParse();
-	hmMesh = Mesh(hmVerts);
+	//Parsing and setting up meshes
+	setupMeshes();
+
+	//Start off with first original parsing mesh
+	hmMesh = hmMeshOriginal;
 
 	//OpenGL state configurations
 	glEnable(GL_DEPTH_TEST);
+	glEnable(GL_PRIMITIVE_RESTART);
+	glPrimitiveRestartIndex(PRIMITIVE_RESTART);
 
 	// Game loop
 	while (!glfwWindowShouldClose(window)) {
@@ -160,63 +184,181 @@ int main() {
 	return 0;
 }
 
-//Setting up initial variables
+//Fill all the vertex vectors according to the 4 steps
 void hmParse() {
 	GLuint currentPixel = 0;
-	std::vector<glm::vec3> hmRawVerts;
+	GLuint newWidth, newHeight;
 
+	//ORIGINAL PARSING
+	for (GLfloat i = 0; i < hmWidth; i++) {
+		for (GLfloat j = 0; j < hmHeight; j++) {
+			hmVertsOriginal.push_back(glm::vec3(i, j, (GLfloat)hmData[currentPixel]));
+			currentPixel++;
+		}
+	}
+	hmIndicesOriginal = hmGenIndices(hmWidth, hmHeight);
+
+	//SKIPSIZED PARSING
+	currentPixel = 0;
 	for (GLfloat i = 0; i < hmWidth; i += skipSize) {
 		for (GLfloat j = 0; j < hmHeight; j += skipSize) {
-			hmRawVerts.push_back(glm::vec3(i, j, (GLfloat)hmData[currentPixel]));
+			hmVertsSkipsized.push_back(glm::vec3(i, j, (GLfloat)hmData[currentPixel]));
 			currentPixel += skipSize;
 		}
 		currentPixel = i * hmWidth; //Make sure the skipSize does not disturb the parsing by not being a divisor of the width
 	}
+	//Updating dimensions
+	newWidth = ceil((GLfloat)hmWidth / skipSize);
+	newHeight = ceil((GLfloat)hmHeight / skipSize);
+	//Generating new indices
+	hmIndicesSkipsized = hmGenIndices(newWidth, newHeight);
+	
+	//CR1 PARSING, using previously generated data from skipsized parsing
+	for (GLuint i = 0; i < hmVertsSkipsized.size(); i++) {
+		//Pushing original point from skipsized parsing
+		hmVertsCr1.push_back(hmVertsSkipsized.at(i));
 
-	GLuint newWidth = hmWidth / skipSize;
-	GLuint newHeight = hmHeight / skipSize;
+		GLint magicNumber = i - newWidth + 2; //It's the magic number. Don't ask questions. I made a drawing, trust me.
+		if ((i + 1) % newWidth == 0) {
+			//No need to calculate this point. End point of the row.
+		}
+		else if (i % newWidth == 0 || magicNumber % newWidth == 0) {
+			//Special case first and last point
+			glm::vec3 p0(hmVertsSkipsized.at(i));
+			glm::vec3 p1(hmVertsSkipsized.at(i + 1));
 
-	std::cout << "newWidth: " << newWidth << " newHeight: " << newHeight << std::endl;
-	//Ordering vertices properly for rendering
-	for (int row = 0; row < newWidth - 1; row++) {
-		for (int col = 0; col < newHeight - 1; col++) {
-			//All four vertices of the rectangle made by two triangles
-			glm::vec3 topRight(hmRawVerts.at((row*newWidth) + col + 1));
-			glm::vec3 topLeft(hmRawVerts.at((row*newWidth) + col));
-			glm::vec3 bottomLeft(hmRawVerts.at((row + 1)*newWidth + col));
-			glm::vec3 bottomRight(hmRawVerts.at((row + 1)*newWidth + col + 1));
+			//Getting new points and pushing them
+			std::queue<glm::vec3> newPoints = linearInterpolation(p0, p1);
+			GLuint queueSize = newPoints.size();
+			for (GLuint j = 0; j < queueSize; j++) {
+				hmVertsCr1.push_back(newPoints.front());
+				newPoints.pop();
+			}
+		}
+		else {
+			//Perform Catmull-Rom
+			glm::vec3 p0(hmVertsSkipsized.at(i - 1));
+			glm::vec3 p1(hmVertsSkipsized.at(i));
+			glm::vec3 p2(hmVertsSkipsized.at(i + 1));
+			glm::vec3 p3(hmVertsSkipsized.at(i + 2));
 
-			//CCW Order
-			//First triangle
-			hmVerts.push_back(topRight);
-			hmVerts.push_back(topLeft);
-			hmVerts.push_back(bottomLeft);
-			//Second Triangle
-			hmVerts.push_back(topRight);
-			hmVerts.push_back(bottomLeft);
-			hmVerts.push_back(bottomRight);
+			std::queue<glm::vec3> newPoints(crInterpolation(p0, p1, p2, p3));
+			GLuint queueSize = newPoints.size();
+			for (GLuint j = 0; j < queueSize; j++) {
+				hmVertsCr1.push_back(newPoints.front());
+				newPoints.pop();
+			}
 		}
 	}
+	//Updating width
+	newWidth += (newWidth - 1)*((1 / stepSize) - 1);
+	hmIndicesCr1 = hmGenIndices(newWidth, newHeight);
+	
+	//CR2 PARSING, using previously generated data from CR1
+	GLint magicNumber = newWidth*(newHeight - 2); //Yeah I should have thought this through
+	GLuint queueSize = (1 / stepSize) - 1;
+
+	for (GLuint y = 0; y < newWidth; y++) {
+		for(GLuint x = 0; x < newHeight; x++){
+			hmVertsCr2.push_back(hmVertsCr1.at(x * newWidth + y));
+
+			if (x == newHeight-1) {
+				//No need to calculate this point.
+			}
+			else if (x == 0 || x == newHeight-2) {
+				//Special case first and last point
+				glm::vec3 p0(hmVertsCr1.at(x * newWidth + y));
+				glm::vec3 p1(hmVertsCr1.at((x + 1) * newWidth + y));
+
+				//Getting new points and pushing them
+				std::queue<glm::vec3> newPoints(linearInterpolation(p0, p1));
+				for (GLuint j = 0; j < queueSize; j++) {
+					hmVertsCr2.push_back(newPoints.front());
+					newPoints.pop();
+				}
+			}
+			else {
+				//Perform Catmull-Rom
+				glm::vec3 p0(hmVertsCr1.at((x - 1) * newWidth + y));
+				glm::vec3 p1(hmVertsCr1.at(x * newWidth + y));
+				glm::vec3 p2(hmVertsCr1.at((x + 1) * newWidth + y));
+				glm::vec3 p3(hmVertsCr1.at((x + 2) * newWidth + y));
+
+				std::queue<glm::vec3> newPoints(crInterpolation(p0, p1, p2, p3));
+				for (GLuint j = 0; j < queueSize; j++) {
+					hmVertsCr2.push_back(newPoints.front());
+					newPoints.pop();
+				}
+			}
+		}
+	}
+	newHeight += (newHeight - 1)*((1 / stepSize) - 1);
+	hmIndicesCr2 = hmGenIndices2(newWidth, newHeight);
 }
 
-void catmullRomPass(std::vector<glm::vec3> verts) {
-	for (int i = 0; i < verts.size(); i++) {
-		glm::vec3 p0(verts[i]);
-		glm::vec3 p1(verts[i + 1]);
-		glm::vec3 p2(verts[i + 2]);
-		glm::vec3 p3(verts[i + 3]);
-
-		glm::mat3x4 controlMatrix(
-			p0.x, p1.x, p2.x, p3.x,
-			p0.y, p1.y, p2.y, p3.y,
-			p0.z, p1.z, p2.z, p3.z
-		);
-
-		for (GLfloat u = 0; u < 1; u += stepSize) {
-			glm::vec4 currentU(u*u*u, u*u, u, 1);
-			glm::vec3 newPoint(currentU * basisMatrix * controlMatrix);
-		}
+std::queue<glm::vec3> crInterpolation(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) {
+	std::queue<glm::vec3> newPoints;
+	for (GLfloat u = stepSize; u < 1; u += stepSize) {
+		glm::vec3 newPoint(0.5f*((2.0f * p1) + (-p0 + p2)*u + (2.0f * p0 - 5.0f * p1 + 4.0f * p2 - p3)*u*u + (-p0 + 3.0f * p1 - 3.0f * p2 + p3)*u*u*u));
+		newPoints.push(newPoint);
 	}
+	return newPoints;
+}
+
+std::queue<glm::vec3> linearInterpolation(glm::vec3 p0, glm::vec3 p1) {
+	std::queue<glm::vec3> newPoints;
+	for (GLfloat u = stepSize; u < 1; u += stepSize) {
+		glm::vec3 newPoint(p0 + u *(p1 - p0));
+		newPoints.push(newPoint);
+	}
+	return newPoints;
+}
+
+//Generate indices using TRIANGLE_STRIP
+std::vector<GLuint> hmGenIndices(GLuint newWidth, GLuint newHeight) {
+	std::vector<GLuint> hmIndices;
+	for (GLint x = 0; x < (newWidth - 1); x++) {
+		for (GLint y = 0; y < newHeight; y++) {
+			hmIndices.push_back((y*newWidth) + x + 1);
+			hmIndices.push_back((y*newWidth) + x);
+		}
+		hmIndices.push_back(PRIMITIVE_RESTART);
+	}
+	return hmIndices;
+}
+std::vector<GLuint> hmGenIndices2(GLuint newWidth, GLuint newHeight) {
+	std::vector<GLuint> hmIndices;
+	for (GLint x = 0; x < (newHeight - 1); x++) {
+		for (GLint y = 0; y < newWidth; y++) {
+			hmIndices.push_back((y*newHeight) + x + 1);
+			hmIndices.push_back((y*newHeight) + x);
+		}
+		hmIndices.push_back(PRIMITIVE_RESTART);
+	}
+	return hmIndices;
+}
+
+void setupMeshes() {
+	std::cout << "-------------- LOADING MESHES --------------" << std::endl;
+	//Clearing data from previous runs if any
+	hmVertsOriginal.clear();
+	hmVertsSkipsized.clear();
+	hmVertsCr1.clear();
+	hmVertsCr2.clear();
+
+	hmIndicesOriginal.clear();
+	hmIndicesSkipsized.clear();
+	hmIndicesCr1.clear();
+	hmIndicesCr2.clear();
+
+	//Parsing and setting meshes
+	hmParse();
+	hmMeshOriginal = Mesh(hmVertsOriginal, hmIndicesOriginal);
+	hmMeshSkipsized = Mesh(hmVertsSkipsized, hmIndicesSkipsized);
+	hmMeshCr1 = Mesh(hmVertsCr1, hmIndicesCr1);
+	hmMeshCr2 = Mesh(hmVertsCr2, hmIndicesCr2);
+
+	std::cout << "-------------- LOADING COMPLETE --------------" << std::endl;
 }
 
 void update(GLfloat deltaSeconds) {
@@ -242,7 +384,7 @@ void render() {
 	model_matrix = glm::mat4();
 	model_matrix = glm::scale(model_matrix, glm::vec3(1.0f));
 	shader.setMat4("model_matrix", model_matrix);
-	glDrawArrays(currentRenderingMode, 0, hmVerts.size());
+	glDrawElements(currentRenderingMode, hmMesh.getIndices().size(), GL_UNSIGNED_INT, nullptr);
 	glBindVertexArray(0);
 }
 
@@ -272,7 +414,32 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS)
 		currentRenderingMode = GL_POINTS;
 	if (glfwGetKey(window, GLFW_KEY_T) == GLFW_PRESS)
-		currentRenderingMode = GL_TRIANGLES;
+		currentRenderingMode = GL_TRIANGLE_STRIP;
+
+	//Parsing steps
+	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS && currentStep != HMSTEP::ORIGINAL) {
+		currentStep = HMSTEP::ORIGINAL;
+		hmMesh = hmMeshOriginal;
+	}
+	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS && currentStep != HMSTEP::SKIPSIZED) {
+		currentStep = HMSTEP::SKIPSIZED;
+		hmMesh = hmMeshSkipsized;
+	}
+	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS && currentStep != HMSTEP::CR1) {
+		currentStep = HMSTEP::CR1;
+		hmMesh = hmMeshCr1;
+	}
+	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS && currentStep != HMSTEP::CR2) {
+		currentStep = HMSTEP::CR2;
+		hmMesh = hmMeshCr2;
+	}
+
+	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
+		Camera camera(glm::vec3(344.5f, 344.5f, 689.0f));
+		std::cout << "What skip size do you want? " << std::endl;
+		std::cin >> skipSize;
+		setupMeshes();
+	}
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mods) {

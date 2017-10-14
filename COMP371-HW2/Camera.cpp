@@ -2,13 +2,18 @@
 
 #include <iostream>
 
-Camera::Camera(glm::vec3 position, glm::vec3 front, GLfloat yaw, GLfloat pitch) {
-	m_position = position;
-	m_up = m_worldUp;
-	m_yaw = yaw;
-	m_pitch = pitch;
-	m_zoom = 45.0f; //Default zoom value
+// Default camera values
+const float YAW = 0.0f;
+const float PITCH = 0.0f;
+const float ZOOM = 45.0f;
 
+Camera::Camera(glm::vec3 position) :
+	m_position(position),
+	m_up(m_worldUp),
+	m_yaw(YAW),
+	m_pitch(PITCH),
+	m_zoom(ZOOM)
+{
 	updateCameraVectors();
 }
 

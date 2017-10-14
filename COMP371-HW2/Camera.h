@@ -15,7 +15,7 @@ enum class Camera_Movement {
 
 class Camera {
 public:
-	Camera(glm::vec3 position, glm::vec3 front, GLfloat yaw, GLfloat pitch);
+	Camera(glm::vec3 position);
 	glm::mat4 getViewMatrix();
 	glm::mat4 getOrientation();
 	void setFreeMode(GLboolean state);
@@ -58,7 +58,7 @@ public:
 private:
 	//Camera Properties
 	GLfloat mouseSensitivity = 0.1f;
-	GLfloat movementSpeed = 50.0f;
+	GLfloat movementSpeed = 150.0f;
 
 	//Camera States
 	GLboolean freeMode = false;

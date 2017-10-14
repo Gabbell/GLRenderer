@@ -6,18 +6,22 @@ class Mesh {
 public:
 	Mesh(const char* objectName);
 	Mesh(std::vector<glm::vec3> vertices);
+	Mesh(std::vector<glm::vec3> vertices, std::vector<GLuint> indices);
 	Mesh();
 	~Mesh();
 
 	std::vector<glm::vec3> getVerts();
+	std::vector<GLuint> getIndices();
 	std::vector<glm::vec3> getNorms();
 	std::vector<glm::vec2> getUvs();
 	std::vector<glm::vec3> getPositions();
 	GLuint getVBO();
+	GLuint getEBO();
 	GLuint getNormsVBO();
 	GLuint getVAO();
 
 	void setVerts(std::vector<glm::vec3> vertices);
+	void setIndices(std::vector<GLuint> indices);
 	void setNorms(std::vector<glm::vec3> normals);
 	void setUvs(std::vector<glm::vec2> uvs);
 	void setPositions(std::vector<glm::vec3> positions);
@@ -31,12 +35,14 @@ public:
 
 private:
 	std::vector<glm::vec3> m_vertices;
+	std::vector<GLuint> m_indices;
 	std::vector<glm::vec3> m_normals;
 	std::vector<glm::vec2> m_uvs;
 	std::vector<glm::vec3> m_positions;
 
 	//For now
 	GLuint m_VAO;
+	GLuint m_EBO;
 	GLuint m_VBO;
 	GLuint m_normsVBO;
 };
