@@ -1,24 +1,28 @@
-#include "GL/glew.h"	// include GL Extension Wrangler
-#include "GLFW/glfw3.h"	// include GLFW helper library
+#define STB_IMAGE_IMPLEMENTATION
+#define PRIMITIVE_RESTART 0xFFFFFFFF
+
+//Standard library
 #include <iostream>
 #include <string>
 #include <vector>
 #include <queue>
 #include <fstream>
 #include <math.h>
+
+//Additional includes
+#include "GL/glew.h"	// include GL Extension Wrangler
+#include "GLFW/glfw3.h"	// include GLFW helper library
 #include "glm/glm.hpp"
 #include "glm/gtc/matrix_transform.hpp"
 #include "glm/gtc/type_ptr.hpp"
 #include "glm/gtc/random.hpp"
+#include "stb_image.h"
 
+//External headers
 #include "Camera.h"
 #include "Shader.h"
-#include "Mesh.h"
+#include "HeightMesh.h"
 #include "Transform.h"
-
-#define STB_IMAGE_IMPLEMENTATION
-#define PRIMITIVE_RESTART 0xFFFFFFFF
-#include "stb_image.h"
 
 using namespace std;
 
@@ -43,11 +47,11 @@ GLdouble lastX;
 Shader shader;
 
 //Meshes
-Mesh hmMesh;
-Mesh hmMeshOriginal;
-Mesh hmMeshSkipsized;
-Mesh hmMeshCr1;
-Mesh hmMeshCr2;
+HeightMesh currentMesh;
+HeightMesh originalMesh;
+HeightMesh skipsizedMesh;
+HeightMesh cr1Mesh;
+HeightMesh cr2Mesh;
 
 //Timing
 GLuint frames = 0;
@@ -68,17 +72,13 @@ std::vector<GLuint> hmIndicesCr2;
 
 //Other constants & variables
 GLint currentRenderingMode = GL_TRIANGLE_STRIP;
-GLint hmWidth, hmHeight, hmBpp;
-unsigned char* hmData;
-GLuint skipSize;
-GLfloat stepSize;
 
 //Prototypes
 void render();
 void hmParse();
 void setupMeshes();
 std::vector<GLuint> hmGenIndices(GLuint newWidth, GLuint newHeight);
-std::vector<GLuint> hmGenIndices2(GLuint newWidth, GLuint newHeight);
+std::vector<GLuint> hmGenIndicesInverted(GLuint newWidth, GLuint newHeight);
 std::queue<glm::vec3> linearInterpolation(glm::vec3 p0, glm::vec3 p1);
 std::queue<glm::vec3> crInterpolation(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3);
 void update(GLfloat delta);
@@ -90,10 +90,17 @@ void window_size_callback(GLFWwindow* window, int width, int height);
 // The MAIN function, from here we start the application and run the game loop
 int main() {
 
-	std::cout << "Please enter a skip size: " << std::endl;
-	std::cin >> skipSize;
-	std::cout << "Please enter a step size: " << std::endl;
-	std::cin >> stepSize;
+	GLuint skipSize, stepSize;
+
+	do {
+		std::cout << "Please enter a skip size greater than 0: " << std::endl;
+		std::cin >> skipSize;
+	} while (skipSize < 1);
+	do {
+		std::cout << "Please enter a step size between 0 and 1: " << std::endl;
+		std::cin >> stepSize;
+	} while (stepSize <= 0 || stepSize > 1);
+
 	// Init GLFW
 	glfwInit();
 
@@ -140,9 +147,6 @@ int main() {
 
 	//Parsing and setting up meshes
 	setupMeshes();
-
-	//Start off with first original parsing mesh
-	hmMesh = hmMeshOriginal;
 
 	//OpenGL state configurations
 	glEnable(GL_DEPTH_TEST);
@@ -293,7 +297,7 @@ void hmParse() {
 		}
 	}
 	newHeight += (newHeight - 1)*((1 / stepSize) - 1);
-	hmIndicesCr2 = hmGenIndices2(newWidth, newHeight);
+	hmIndicesCr2 = hmGenIndicesInverted(newWidth, newHeight);
 }
 
 std::queue<glm::vec3> crInterpolation(glm::vec3 p0, glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) {
@@ -326,7 +330,7 @@ std::vector<GLuint> hmGenIndices(GLuint newWidth, GLuint newHeight) {
 	}
 	return hmIndices;
 }
-std::vector<GLuint> hmGenIndices2(GLuint newWidth, GLuint newHeight) {
+std::vector<GLuint> hmGenIndicesInverted(GLuint newWidth, GLuint newHeight) {
 	std::vector<GLuint> hmIndices;
 	for (GLint x = 0; x < (newHeight - 1); x++) {
 		for (GLint y = 0; y < newWidth; y++) {
@@ -353,10 +357,28 @@ void setupMeshes() {
 
 	//Parsing and setting meshes
 	hmParse();
-	hmMeshOriginal = Mesh(hmVertsOriginal, hmIndicesOriginal);
-	hmMeshSkipsized = Mesh(hmVertsSkipsized, hmIndicesSkipsized);
-	hmMeshCr1 = Mesh(hmVertsCr1, hmIndicesCr1);
-	hmMeshCr2 = Mesh(hmVertsCr2, hmIndicesCr2);
+	originalMesh = Mesh(hmVertsOriginal, hmIndicesOriginal);
+	skipsizedMesh = Mesh(hmVertsSkipsized, hmIndicesSkipsized);
+	cr1Mesh = Mesh(hmVertsCr1, hmIndicesCr1);
+	cr2Mesh = Mesh(hmVertsCr2, hmIndicesCr2);
+
+	//Updating current mesh
+	switch(currentStep){
+	case HMSTEP::ORIGINAL:
+		currentMesh = originalMesh;
+		break;
+	case HMSTEP::SKIPSIZED:
+		currentMesh = skipsizedMesh;
+		break;
+	case HMSTEP::CR1:
+		currentMesh = cr1Mesh;
+		break;
+	case HMSTEP::CR2:
+		currentMesh = cr2Mesh;
+		break;
+	default:
+		currentMesh = originalMesh;
+	}
 
 	std::cout << "-------------- LOADING COMPLETE --------------" << std::endl;
 }
@@ -380,11 +402,11 @@ void render() {
 	shader.setMat4("projection_matrix", projection_matrix);
 
 	//Mesh rendering
-	glBindVertexArray(hmMesh.getVAO());
+	glBindVertexArray(currentMesh.getVAO());
 	model_matrix = glm::mat4();
 	model_matrix = glm::scale(model_matrix, glm::vec3(1.0f));
 	shader.setMat4("model_matrix", model_matrix);
-	glDrawElements(currentRenderingMode, hmMesh.getIndices().size(), GL_UNSIGNED_INT, nullptr);
+	glDrawElements(currentRenderingMode, currentMesh.getIndices().size(), GL_UNSIGNED_INT, nullptr);
 	glBindVertexArray(0);
 }
 
@@ -419,25 +441,27 @@ void key_callback(GLFWwindow* window, int key, int scancode, int action, int mod
 	//Parsing steps
 	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS && currentStep != HMSTEP::ORIGINAL) {
 		currentStep = HMSTEP::ORIGINAL;
-		hmMesh = hmMeshOriginal;
+		currentMesh = originalMesh;
 	}
 	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS && currentStep != HMSTEP::SKIPSIZED) {
 		currentStep = HMSTEP::SKIPSIZED;
-		hmMesh = hmMeshSkipsized;
+		currentMesh = skipsizedMesh;
 	}
 	if (glfwGetKey(window, GLFW_KEY_3) == GLFW_PRESS && currentStep != HMSTEP::CR1) {
 		currentStep = HMSTEP::CR1;
-		hmMesh = hmMeshCr1;
+		currentMesh = cr1Mesh;
 	}
 	if (glfwGetKey(window, GLFW_KEY_4) == GLFW_PRESS && currentStep != HMSTEP::CR2) {
 		currentStep = HMSTEP::CR2;
-		hmMesh = hmMeshCr2;
+		currentMesh = cr2Mesh;
 	}
 
 	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-		Camera camera(glm::vec3(344.5f, 344.5f, 689.0f));
-		std::cout << "What skip size do you want? " << std::endl;
-		std::cin >> skipSize;
+		camera = Camera(glm::vec3(344.5f, 344.5f, 689.0f));
+		do {
+			std::cout << "Please enter a skip size greater than 0: " << std::endl;
+			std::cin >> skipSize;
+		} while (skipSize < 1);
 		setupMeshes();
 	}
 }

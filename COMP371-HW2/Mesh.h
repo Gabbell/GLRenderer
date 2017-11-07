@@ -2,36 +2,37 @@
 #include <vector>
 #include "glm/glm.hpp"
 #include "GL/glew.h"
+ 
 class Mesh {
 public:
 	Mesh(const char* objectName);
 	Mesh(std::vector<glm::vec3> vertices);
 	Mesh(std::vector<glm::vec3> vertices, std::vector<GLuint> indices);
 	Mesh();
-	~Mesh();
+	virtual ~Mesh();
 
-	std::vector<glm::vec3> getVerts();
-	std::vector<GLuint> getIndices();
-	std::vector<glm::vec3> getNorms();
-	std::vector<glm::vec2> getUvs();
-	std::vector<glm::vec3> getPositions();
-	GLuint getVBO();
-	GLuint getEBO();
-	GLuint getNormsVBO();
-	GLuint getVAO();
+	std::vector<glm::vec3> getVerts() const { return m_vertices; }
+	std::vector<GLuint> getIndices() const { return m_indices; }
+	std::vector<glm::vec3> getNorms() const { return m_normals; }
+	std::vector<glm::vec2> getUvs() const { return m_uvs; }
+	std::vector<glm::vec3> getPositions() const { return m_positions; }
+	GLuint getVBO() const { return m_VBO; }
+	GLuint getEBO() const { return m_EBO; }
+	GLuint getNormsVBO() const { return m_normsVBO; }
+	GLuint getVAO() const { return m_VAO; }
 
-	void setVerts(std::vector<glm::vec3> vertices);
-	void setIndices(std::vector<GLuint> indices);
-	void setNorms(std::vector<glm::vec3> normals);
-	void setUvs(std::vector<glm::vec2> uvs);
-	void setPositions(std::vector<glm::vec3> positions);
-	void setPosition(glm::vec3 position);
-	void setPosition(GLuint index, glm::vec3 position);
+	void setVerts(const std::vector<glm::vec3>& vertices) { m_vertices = vertices; }
+	void setIndices(const std::vector<GLuint>& indices) { m_indices = indices; }
+	void setNorms(const std::vector<glm::vec3>& normals) { m_normals = normals; }
+	void setUvs(const std::vector<glm::vec2>& uvs) { m_uvs = uvs; }
+	void setPositions(const std::vector<glm::vec3>& positions) { m_positions = positions; }
+	void setPosition(const glm::vec3& position) { m_positions[0] = position; }
+	void setPosition(const GLuint& index, const glm::vec3& position) { m_positions[index] = position; }
 
-	void addPosition(glm::vec3 position);
-	void removePosition(GLuint index);
-	void translate(glm::vec3 translation);
-	void clearPositions();
+	void addPosition(glm::vec3 position) { m_positions.push_back(position); }
+	void removePosition(GLuint index) { m_positions.erase(m_positions.begin() + index); }
+	void translate(glm::vec3 translation) { m_positions[0] += translation; }
+	void clearPositions() { m_positions.clear(); }
 
 private:
 	std::vector<glm::vec3> m_vertices;
