@@ -84,7 +84,7 @@ void Scene::loadCamera() {
 void Scene::loadSphere() {
 	string parameter;
 	glm::vec3 pos, amb, dif, spe;	// Sphere position, ambient color, diffuse color and specular color
-	int rad, shi;					// Sphere radius and shininess
+	float rad, shi;					// Sphere radius and shininess
 	for (int i = 0; i < 6; i++) {	// Sphere has 6 parameters
 		m_sceneFile >> parameter;
 		if (parameter == "pos:") {

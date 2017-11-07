@@ -106,27 +106,19 @@ void raytrace(CImg<float>& imgData) {
 					bool isOccluded = false;
 					float t = 0;
 					for (const SceneObject* object : scene->getObjects()) {
-						if (object == closestObject) {
-							continue;
-						}
+						if (object == closestObject) continue ;
 						if (object->intersecting(rayToLight, t)) {
-							if (t > 0) {
-								glm::vec3 hitPoint = (rayToLight.origin + rayToLight.direction*t);
-								float distanceToLight = glm::length(light->getPosition() - intersectPoint);
-								float distanceToObject = glm::length(hitPoint - intersectPoint);
-								if (distanceToObject < distanceToLight) { 
-									isOccluded = true; 
-									break;
-								}
-							}
+							glm::vec3 hitPoint = (rayToLight.origin + rayToLight.direction*t);
+							float distanceToLight = glm::length(light->getPosition() - intersectPoint);
+							float distanceToObject = glm::length(hitPoint - intersectPoint);
+							if (t > 0 && distanceToObject < distanceToLight) isOccluded = true ; 
 						}
 					}
-
 					if (!isOccluded) {
 						glm::vec3 normal = closestObject->getNormal(intersectPoint);
-						glm::vec3 reflection = (2 * glm::dot(rayToLight.direction, normal) * normal) - rayToLight.direction;
+						glm::vec3 reflection = glm::reflect(-rayToLight.direction, normal);
 						glm::vec3 diffuse = closestObject->getDiffuseColor() * std::max(glm::dot(rayToLight.direction, normal), 0.0f);
-						glm::vec3 specular = closestObject->getSpecularColor() * pow(std::max(glm::dot(reflection, ray.direction * -1.0f), 0.0f), closestObject->getShininessFactor());
+						glm::vec3 specular = closestObject->getSpecularColor() * pow(max(glm::dot(reflection, -ray.direction) , 0.0f), closestObject->getShininessFactor());
 						finalColor += light->getColor() * (diffuse + specular);
 					}
 				}
