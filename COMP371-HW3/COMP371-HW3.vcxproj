@@ -22,6 +22,7 @@
     <ProjectGuid>{507F5FD1-76FC-4608-85E4-574CAAED8F30}</ProjectGuid>
     <RootNamespace>COMP371HW3</RootNamespace>
     <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <ProjectName>Raytracer</ProjectName>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">

@@ -73,11 +73,14 @@ void raytrace(CImg<float>& imgData) {
 
 	for (int x = 0; x < imgData.width(); x++) {
 		for (int y = 0; y < imgData.height(); y++) {
+
 			Ray ray = { cameraPosition, glm::normalize(glm::vec3(left + x, top - y, cameraPosition.z - sceneCam->getFocalLength()) - cameraPosition) };
 
 			const SceneObject* closestObject = nullptr;
 			float minimumT = 0;
+
 			for (const SceneObject* object : scene->getObjects()) {
+
 				float t = 0;
 				if (object->intersecting(ray, t)) {
 					if (t > 0) {
@@ -94,10 +97,11 @@ void raytrace(CImg<float>& imgData) {
 					}
 				}
 			}
+
 			// An object has been hit
 			if (closestObject) {
-				glm::vec3 intersectPoint(ray.origin + (ray.direction * minimumT));
 
+				glm::vec3 intersectPoint(ray.origin + (ray.direction * minimumT));
 				glm::vec3 finalColor = closestObject->getAmbientColor();
 				for (const Light* light : scene->getLights()) {
 					// Cast a shadow ray
@@ -105,7 +109,9 @@ void raytrace(CImg<float>& imgData) {
 
 					bool isOccluded = false;
 					float t = 0;
+
 					for (const SceneObject* object : scene->getObjects()) {
+
 						if (object == closestObject) continue ;
 						if (object->intersecting(rayToLight, t)) {
 							glm::vec3 hitPoint = (rayToLight.origin + rayToLight.direction*t);
@@ -114,7 +120,9 @@ void raytrace(CImg<float>& imgData) {
 							if (t > 0 && distanceToObject < distanceToLight) isOccluded = true ; 
 						}
 					}
+
 					if (!isOccluded) {
+
 						glm::vec3 normal = closestObject->getNormal(intersectPoint);
 						glm::vec3 reflection = glm::reflect(-rayToLight.direction, normal);
 						glm::vec3 diffuse = closestObject->getDiffuseColor() * std::max(glm::dot(rayToLight.direction, normal), 0.0f);

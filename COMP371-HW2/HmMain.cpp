@@ -21,7 +21,7 @@
 //External headers
 #include "Camera.h"
 #include "Shader.h"
-#include "HeightMesh.h"
+#include "Mesh.h"
 #include "Transform.h"
 
 using namespace std;
@@ -38,7 +38,7 @@ glm::mat4 view_matrix;
 glm::mat4 model_matrix;
 
 //Camera
-Camera camera(glm::vec3(344.5f,344.5f,689.0f));
+Camera camera(glm::vec3(689.0f,689.5f,689.0f));
 GLboolean firstMouse = true;
 GLdouble lastY;
 GLdouble lastX;
@@ -47,11 +47,11 @@ GLdouble lastX;
 Shader shader;
 
 //Meshes
-HeightMesh currentMesh;
-HeightMesh originalMesh;
-HeightMesh skipsizedMesh;
-HeightMesh cr1Mesh;
-HeightMesh cr2Mesh;
+Mesh currentMesh;
+Mesh originalMesh;
+Mesh skipsizedMesh;
+Mesh cr1Mesh;
+Mesh cr2Mesh;
 
 //Timing
 GLuint frames = 0;
@@ -72,6 +72,10 @@ std::vector<GLuint> hmIndicesCr2;
 
 //Other constants & variables
 GLint currentRenderingMode = GL_TRIANGLE_STRIP;
+GLint hmWidth, hmHeight, hmBpp;
+unsigned char* hmData;
+GLuint skipSize;
+GLfloat stepSize;
 
 //Prototypes
 void render();
@@ -89,8 +93,6 @@ void window_size_callback(GLFWwindow* window, int width, int height);
 
 // The MAIN function, from here we start the application and run the game loop
 int main() {
-
-	GLuint skipSize, stepSize;
 
 	do {
 		std::cout << "Please enter a skip size greater than 0: " << std::endl;

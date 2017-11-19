@@ -9,7 +9,7 @@ public:
 	Mesh(std::vector<glm::vec3> vertices);
 	Mesh(std::vector<glm::vec3> vertices, std::vector<GLuint> indices);
 	Mesh();
-	virtual ~Mesh();
+	~Mesh();
 
 	std::vector<glm::vec3> getVerts() const { return m_vertices; }
 	std::vector<GLuint> getIndices() const { return m_indices; }

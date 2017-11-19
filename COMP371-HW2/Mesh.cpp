@@ -65,3 +65,4 @@ Mesh::Mesh(std::vector<glm::vec3> vertices, std::vector<GLuint> indices) {
 }
 
 Mesh::Mesh() {}
+Mesh::~Mesh() {}
