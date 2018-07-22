@@ -23,5 +23,5 @@ A height map visualizer. Uses stb_image to parse image information. Once the ima
 
 A basic raytracer with lighting and shadows. It can compute intersections for spheres, planes, triangles and .obj's. It can produce images like the following.
 
-![](https://s18.postimg.org/ygr7765ux/Capture.jpg)
+![](http://gabrielbelanger.com/images/portfolio/modals/rt.jpg)
 
